@@ -7,14 +7,14 @@ import argparse
 import sys
 import os
 
-# Ensure the parent directory is in the path to allow module imports
+# Ensure the parent directory is in the path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from vulnscanner.core.scanner import Scanner
-from vulnscanner.core.checker import Checker
-from vulnscanner.reporter_html import HTMLReporter
-from vulnscanner.utils.notes_exporter import NotesExporter
-from vulnscanner.utils.utils import parse_targets
+from core.scanner import Scanner
+from core.checker import Checker
+from reporter_html import HTMLReporter
+from utils.notes_exporter import NotesExporter
+from utils.utils import parse_targets
 
 # Professional logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -30,7 +30,6 @@ def parse_arguments():
 
 async def run_scan(target, port_range, args):
     scanner = Scanner()
-    # Ensure relative paths for data and templates
     checker = Checker(data_dir=os.path.join(os.path.dirname(__file__), "data"), 
                       templates_dir=os.path.join(os.path.dirname(__file__), "templates"))
     
