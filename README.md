@@ -1,6 +1,6 @@
 # VulnScanner 🛡️
 
-A professional, modular, and async-driven defensive vulnerability assessment framework in Python. Designed for security researchers and CTF players (TryHackMe/HackTheBox) to quickly identify services and correlate them with known exploits in **Exploit-DB**.
+A professional, modular, and async-driven vulnerability assessment framework in Python. Designed for security researchers and CTF players (TryHackMe/HackTheBox) to quickly identify services and correlate them with known exploits in **Exploit-DB**.
 
 ## Features
 - **Host Discovery & Port Scanning**: Non-blocking TCP connect scanning using `asyncio`.
@@ -8,7 +8,6 @@ A professional, modular, and async-driven defensive vulnerability assessment fra
 - **Exploit-DB Integration**: Dynamically queries `searchsploit` for real-time exploit matches.
 - **CIDR & Network Support**: Scan single IPs, domains, or entire subnets (e.g., `192.168.1.0/24`).
 - **Colorized Reporting**: High-signal output with severity-based color coding.
-- **Strictly Defensive**: No exploitation payloads or brute-forcing.
 
 ## Installation
 
@@ -46,7 +45,3 @@ If you don't have `searchsploit` (Exploit-DB) installed, the tool will automatic
 
 1. Start the mock target: `python vuln_site.py`
 2. Run the scanner: `python -m vulnscanner.main 127.0.0.1 -p 8080`
-
-## Safety & Legal Disclaimer
-**FOR AUTHORIZED DEFENSIVE ASSESSMENTS ONLY.**
-The authors are not responsible for any misuse. Always obtain explicit permission before scanning any network.

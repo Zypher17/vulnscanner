@@ -68,7 +68,7 @@ def main():
         kernel32 = ctypes.windll.kernel32
         kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
 
-    parser = argparse.ArgumentParser(description="Professional Defensive Vulnerability Framework")
+    parser = argparse.ArgumentParser(description="Professional Vulnerability Framework")
     parser.add_argument("target", help="Target IP, CIDR (e.g. 192.168.1.0/24), or domain")
     parser.add_argument("-p", "--ports", default="21,22,80,443,3306,5432,8080", help="Port range (1-100) or list (22,80)")
     parser.add_argument("-f", "--format", choices=["text", "json"], default="text", help="Output format")
