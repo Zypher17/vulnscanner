@@ -90,8 +90,7 @@ class ExploitDBCheck(BaseCheck):
                         severity=Severity.HIGH, # Default to HIGH as a CVE match is serious
                         title=f"Exploit-DB: {title}",
                         description=f"Public exploit found for '{query}'. Version: {port.version or 'N/A'}.",
-                        evidence=f"EDB-ID: {result.get('EDB-ID')}
-Path: {result.get('Path')}",
+                        evidence="EDB-ID: {}\nPath: {}".format(result.get('EDB-ID'), result.get('Path')),
                         remediation="Update the service to a patched version. Review Exploit-DB details for specific mitigation steps.",
                         exploitation_note=" ".join(exploitation_note_parts),
                         edb_ids=[result.get('EDB-ID')] if result.get('EDB-ID') else [],
