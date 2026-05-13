@@ -81,6 +81,7 @@ class Checker:
     async def run_checks(self, host: Host) -> List[Finding]:
         all_findings = []
         for port in host.ports:
+            console.log(f"[bold magenta]Checking port {port.number} [Service: {port.service}][/bold magenta]")
             results = await asyncio.gather(*[c.check(host, port) for c in self.checks])
             for r in results: all_findings.extend(r)
         return all_findings

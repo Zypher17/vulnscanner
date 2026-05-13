@@ -57,7 +57,8 @@ async def run_scan(target_str: str, port_range: str, output_format: str, concurr
     start_time = time.time()
     all_findings = []
 
-    # Initialize professional progress tracker
+    # Improved Progress Tracking: 
+    # Overall scan tracks targets, each target has a sub-task for scanning/analysis
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
@@ -66,22 +67,24 @@ async def run_scan(target_str: str, port_range: str, output_format: str, concurr
         TimeRemainingColumn(),
         console=console
     ) as progress:
-        overall_task = progress.add_task("[cyan]Overall Scan Progress", total=len(targets))
+        overall_task = progress.add_task("[bold cyan]Scanning all targets...", total=len(targets))
         
         for target in targets:
-            progress.update(overall_task, description=f"[cyan]Scanning {target}")
+            # Task for this specific host
+            host_task = progress.add_task(f"[blue]Host: {target}", total=100)
             
-            # Sub-task for port scanning
-            scan_task = progress.add_task(f"[blue]Port scan: {target}", total=len(ports))
+            # Scan
             host = await scanner.scan_host(target, ports)
-            progress.update(scan_task, completed=len(ports))
+            progress.update(host_task, advance=50, description=f"[blue]Host {target}: Port scan complete")
             
             if host.alive:
-                check_task = progress.add_task(f"[yellow]Analyzing vulnerabilities: {target}", total=1)
+                # Vulnerability checks
                 findings = await checker.run_checks(host)
                 all_findings.extend(findings)
-                progress.update(check_task, completed=1)
-            
+                progress.update(host_task, advance=50, description=f"[green]Host {target}: Analysis complete")
+            else:
+                progress.update(host_task, advance=50, description=f"[red]Host {target}: Down")
+                
             progress.advance(overall_task)
     
     duration = time.time() - start_time
