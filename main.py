@@ -5,9 +5,6 @@ import sys
 import time
 from rich.console import Console
 from rich.table import Table
-from rich.progress import (
-    Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn, TimeRemainingColumn
-)
 from rich.panel import Panel
 from rich import box
 
@@ -57,35 +54,19 @@ async def run_scan(target_str: str, port_range: str, output_format: str, concurr
     start_time = time.time()
     all_findings = []
 
-    # Improved Progress Tracking: 
-    # Overall scan tracks targets, each target has a sub-task for scanning/analysis
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        BarColumn(),
-        TaskProgressColumn(),
-        TimeRemainingColumn(),
-        console=console
-    ) as progress:
-        overall_task = progress.add_task("[bold cyan]Scanning all targets...", total=len(targets))
+    for target in targets:
+        console.print(f"[bold cyan]Scanning target:[/bold cyan] [bold white]{target}[/bold white]")
         
-        for target in targets:
-            # Task for this specific host
-            host_task = progress.add_task(f"[blue]Host: {target}", total=100)
-            
-            # Scan
-            host = await scanner.scan_host(target, ports)
-            progress.update(host_task, advance=50, description=f"[blue]Host {target}: Port scan complete")
-            
-            if host.alive:
-                # Vulnerability checks
-                findings = await checker.run_checks(host)
-                all_findings.extend(findings)
-                progress.update(host_task, advance=50, description=f"[green]Host {target}: Analysis complete")
-            else:
-                progress.update(host_task, advance=50, description=f"[red]Host {target}: Down")
-                
-            progress.advance(overall_task)
+        # Scan
+        host = await scanner.scan_host(target, ports)
+        
+        if host.alive:
+            console.print(f"[bold green]✓[/bold green] Host [bold white]{target}[/bold white] is up. Found {len(host.ports)} open ports.")
+            findings = await checker.run_checks(host)
+            all_findings.extend(findings)
+            console.print(f"[bold green]✓[/bold green] Analysis complete. Found {len(findings)} findings.")
+        else:
+            console.print(f"[bold red]✗[/bold red] Host [bold white]{target}[/bold white] appears to be down.")
     
     duration = time.time() - start_time
     console.print(f"\n[bold green]✓[/bold green] Scan completed in [bold cyan]{duration:.2f}[/bold cyan] seconds.")
