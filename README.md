@@ -19,7 +19,7 @@ A professional, modular, and async-driven defensive vulnerability assessment fra
 
 ### Setup
 ```bash
-git clone https://github.com/YOUR_USERNAME/vulnscanner.git
+git clone https://github.com/Zypher17/vulnscanner.git
 cd vulnscanner
 ```
 
