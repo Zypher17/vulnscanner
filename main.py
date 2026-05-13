@@ -7,12 +7,11 @@ import argparse
 import sys
 import os
 
-# Use absolute imports from the package
-from vulnscanner.core.scanner import Scanner
-from vulnscanner.core.checker import Checker
-from vulnscanner.reporter_html import HTMLReporter
-from vulnscanner.utils.notes_exporter import NotesExporter
-from vulnscanner.utils.utils import parse_targets
+from core.scanner import Scanner
+from core.checker import Checker
+from reporter_html import HTMLReporter
+from utils.notes_exporter import NotesExporter
+from utils import parse_targets
 
 # Professional logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -22,16 +21,14 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description="VulnScanner: Advanced Defensive Reconnaissance")
     parser.add_argument("target", help="Target IP or range")
     parser.add_argument("-p", "--ports", default="80,443,8080,9000", help="Ports")
+    parser.add_argument("--format", choices=["text", "json"], default="text", help="Output format")
     parser.add_argument("--export-html", help="HTML report output path")
     parser.add_argument("--export-notes", help="Plaintext notes output path")
     return parser.parse_args()
 
 async def run_scan(target, port_range, args):
-    # Set paths relative to this file
-    base_dir = os.path.dirname(os.path.abspath(__file__))
     scanner = Scanner()
-    checker = Checker(data_dir=os.path.join(base_dir, "data"), 
-                      templates_dir=os.path.join(base_dir, "templates"))
+    checker = Checker(data_dir="data", templates_dir="templates")
     
     ports = [int(p) for p in port_range.split(',')]
     host = await scanner.scan_host(target, ports)
