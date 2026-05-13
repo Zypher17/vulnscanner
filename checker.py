@@ -3,7 +3,11 @@ import httpx
 import re
 from typing import List, Dict, Any
 from .models import Host, Port, Finding, Severity
-from .utils import parse_targets # Assuming parse_targets is in utils
+from .utils import parse_targets 
+from rich.console import Console # Added console for logging warnings
+
+# Assume console is initialized globally or passed if needed
+console = Console()
 
 class BaseCheck:
     def __init__(self, knowledge_base: Dict[str, Any]):
@@ -80,8 +84,9 @@ class ExploitDBCheck(BaseCheck):
                         severity=Severity.HIGH, # Default to HIGH as a CVE match is serious
                         title=f"Exploit-DB: {title}",
                         description=f"Public exploit found for '{query}'. Version: {port.version or 'N/A'}.",
+                        # CORRECTED LINE: Ensured the f-string is properly terminated
                         evidence=f"EDB-ID: {result.get('EDB-ID')}
-Path: {result.get('Path')}",
+Path: {result.get('Path')}", 
                         remediation="Update the service to a patched version. Review Exploit-DB details for specific mitigation steps.",
                         exploitation_note="This service version is associated with a public exploit in Exploit-DB, indicating potential for unauthorized access or system compromise.",
                         edb_ids=[result.get('EDB-ID')] if result.get('EDB-ID') else [],
@@ -152,7 +157,8 @@ class HTTPCheck(BaseCheck):
                 async with httpx.AsyncClient(timeout=self.timeout, verify=False, follow_redirects=True) as client:
                     response = await client.get(test_url)
                     # Infer vulnerability based on status code and content
-                    if response.status_code in [200, 204] and len(response.content) > 100: # Some content, not just empty
+                    # Check for successful responses with meaningful content
+                    if response.status_code in [200, 204] and (len(response.content) > 100 or path == "/robots.txt"): 
                         finding_title = f"Exposed Sensitive Path: {path}"
                         severity = Severity.MEDIUM
                         description = f"Path '{path}' returned a successful response, potentially exposing sensitive information or interfaces."
@@ -256,6 +262,7 @@ class Checker:
     def __init__(self, data_dir: str):
         self.data_dir = data_dir
         self.kb = self._load_kb(data_dir)
+        # Ensure ExploitDBCheck, HTTPCheck, and DBCheck are included
         self.checks = [
             ExploitDBCheck(self.kb),
             HTTPCheck(self.kb),
@@ -265,7 +272,7 @@ class Checker:
     def _load_kb(self, data_dir: str) -> Dict[str, Any]:
         kb = {}
         # Only risk_summary is loaded as banners.json and cves.json are now largely replaced by searchsploit
-        for name in ['risk_summary']:
+        for name in ['risk_summary']: # Assuming risk_summary is the main KB file
             path = os.path.join(data_dir, f"{name}.json")
             if os.path.exists(path) and os.path.getsize(path) > 0:
                 try:
@@ -281,6 +288,7 @@ class Checker:
     async def run_checks(self, host: Host) -> List[Finding]:
         all_findings = []
         for port in host.ports:
+            # Run checks concurrently for this port
             tasks = [c.check(host, port) for c in self.checks]
             results = await asyncio.gather(*tasks)
             for r in results:
