@@ -1,7 +1,7 @@
 import importlib
 import os
 import yaml
-from typing import List
+from typing import List, Dict
 from scanner.models import Host, Port, Finding
 
 class TemplateCheck:
