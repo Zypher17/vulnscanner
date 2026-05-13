@@ -1,5 +1,2 @@
-core
-data
-modules
-templates
-utils
+vulnscanner_actual
+vulnscanner_new

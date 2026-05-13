@@ -2,8 +2,9 @@
 Core engine orchestrating scans with result caching and concurrent workers.
 """
 import asyncio
-from ..models import Host, Port, logger
-from ..utils.cache import ResultCache
+from typing import List
+from scanner.models import Host, Port, logger
+from scanner.utils.cache import ResultCache
 
 class Scanner:
     def __init__(self, concurrency: int = 100):

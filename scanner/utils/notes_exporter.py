@@ -1,6 +1,6 @@
 import datetime
 from typing import List
-from .models import Finding
+from scanner.models import Finding
 
 class NotesExporter:
     @staticmethod
@@ -15,10 +15,10 @@ class NotesExporter:
         else:
             for f in findings:
                 notes += f"Finding: {f.title}\n"
-                notes += f"Severity: {f.severity.upper()}\n"
+                notes += f"Severity: {f.severity}\n"
                 notes += f"Target/Port: {f.host}:{f.port}\n"
                 notes += f"Description: {f.description}\n"
-                notes += f"Evidence: {f.evidence.replace(chr(10), ' ')}\n"
+                notes += f"Evidence: {f.evidence}\n"
                 notes += f"Remediation: {f.remediation}\n"
                 notes += f"Exploitation Logic (Conceptual): {f.exploitation_note}\n"
                 if f.links:
