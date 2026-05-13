@@ -11,6 +11,7 @@ from rich import box
 from .scanner import Scanner
 from .checker import Checker
 from .reporter import Reporter
+from .reporter_html import HTMLReporter
 from .utils import parse_targets
 
 console = Console()
@@ -27,7 +28,7 @@ BANNER = """
 [bold white]VulnScanner v2.2 | Security Research Framework | Developed by Zypher17[/bold white]
 """
 
-async def run_scan(target_str: str, port_range: str, output_format: str, concurrency: int):
+async def run_scan(target_str: str, port_range: str, output_format: str, concurrency: int, export_html: str = None):
     console.print(Panel(BANNER, border_style="cyan"))
     
     targets = parse_targets(target_str)
@@ -71,6 +72,12 @@ async def run_scan(target_str: str, port_range: str, output_format: str, concurr
     duration = time.time() - start_time
     console.print(f"\n[bold green]✓[/bold green] Scan completed in [bold cyan]{duration:.2f}[/bold cyan] seconds.")
     
+    if export_html:
+        html_report = HTMLReporter.generate(all_findings, target_str)
+        with open(export_html, "w") as f:
+            f.write(html_report)
+        console.print(f"[bold green]✓[/bold green] Report exported to [bold cyan]{export_html}[/bold cyan]")
+
     if not all_findings:
         console.print("[bold green]No vulnerabilities found! Good job.[/bold green]")
         return
@@ -121,6 +128,7 @@ def main():
     parser.add_argument("-f", "--format", choices=["text", "json"], default="text", help="Output format")
     parser.add_argument("-c", "--concurrency", type=int, default=200, help="Max connections")
     parser.add_argument("--profile", choices=["quick", "web", "full", "lab"], help="Scanning profiles")
+    parser.add_argument("--export-html", help="Export report to HTML file")
     
     args = parser.parse_args()
     
@@ -130,7 +138,7 @@ def main():
     elif args.profile == "lab": args.ports = "8080,9000"
 
     try:
-        asyncio.run(run_scan(args.target, args.ports, args.format, args.concurrency))
+        asyncio.run(run_scan(args.target, args.ports, args.format, args.concurrency, args.export_html))
     except KeyboardInterrupt:
         console.print("\n[bold red][!] User interrupted. Exiting...[/bold red]")
     except Exception as e:
