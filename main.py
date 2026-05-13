@@ -3,27 +3,81 @@ import argparse
 import os
 import sys
 import time
+from rich.console import Console
+from rich.table import Table
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
+from rich.panel import Panel
+from rich.live import Live
+from rich import box
+
 from .scanner import Scanner
 from .checker import Checker
 from .reporter import Reporter
 from .utils import parse_targets
 
-async def process_target(target: str, ports: list, scanner: Scanner, checker: Checker):
-    print(f"[*] Starting scan for {target}...")
+console = Console()
+
+BANNER = """
+[bold cyan]
+██╗   ██╗██╗   ██╗██╗     ███╗   ██╗███████╗ ██████╗ █████╗ ███╗   ██╗███╗   ██╗███████╗██████╗ 
+██║   ██║██║   ██║██║     ████╗  ██║██╔════╝██╔════╝██╔══██╗████╗  ██║████╗  ██║██╔════╝██╔══██╗
+██║   ██║██║   ██║██║     ██╔██╗ ██║███████╗██║     ███████║██╔██╗ ██║██╔██╗ ██║█████╗  ██████╔╝
+╚██╗ ██╔╝██║   ██║██║     ██║╚██╗██║╚════██║██║     ██╔══██║██║╚██╗██║██║╚██╗██║██╔══╝  ██╔══██╗
+ ╚████╔╝ ╚██████╔╝███████╗██║ ╚████║███████║╚██████╗██║  ██║██║ ╚████║██║ ╚████║███████╗██║  ██║
+  ╚═══╝   ╚═════╝ ╚══════╝╚═╝  ╚═══╝╚══════╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝
+[/bold cyan]
+[bold white]Vulnerability Assessment Framework | v2.0[/bold white]
+"""
+
+async def process_target(target: str, ports: list, scanner: Scanner, checker: Checker, progress: Progress):
+    task_id = progress.add_task(f"[cyan]Scanning {target}...", total=len(ports))
+    
+    # Custom callback to update progress per port
     host = await scanner.scan_host(target, ports)
+    # We update progress fully after host scan since scanner.scan_host is internal
+    # For more granularity, we'd need to modify scan_host to accept a callback
+    progress.update(task_id, completed=len(ports), description=f"[green]Scan complete for {target}")
     
     if not host.alive:
-        print(f"[-] {target} is down or no ports found.")
         return []
 
-    print(f"[+] {target} is up. Found {len(host.ports)} open ports. Running vulnerability checks...")
+    check_task = progress.add_task(f"[yellow]Analyzing {target}...", total=1)
     findings = await checker.run_checks(host)
+    progress.update(check_task, completed=1, description=f"[green]Analysis complete for {target}")
+    
     return findings
 
+def display_summary_table(findings):
+    table = Table(title="Vulnerability Summary", box=box.ROUNDED, header_style="bold magenta")
+    table.add_column("Severity", justify="center")
+    table.add_column("Target", justify="left")
+    table.add_column("Port", justify="center")
+    table.add_column("Issue", justify="left")
+    
+    severity_colors = {
+        "critical": "[bold red]CRITICAL[/bold red]",
+        "high": "[red]HIGH[/red]",
+        "medium": "[yellow]MEDIUM[/yellow]",
+        "low": "[blue]LOW[/blue]",
+        "none": "[green]INFO[/green]"
+    }
+    
+    for f in findings:
+        table.add_row(
+            severity_colors.get(f.severity.value.lower(), f.severity.value),
+            f.host,
+            str(f.port),
+            f.title
+        )
+    
+    console.print(table)
+
 async def run_scan(target_str: str, port_range: str, output_format: str, concurrency: int):
+    console.print(Panel(BANNER, border_style="cyan"))
+    
     targets = parse_targets(target_str)
     if not targets:
-        print("[!] No valid targets found.")
+        console.print("[bold red][!] No valid targets found.[/bold red]")
         return
 
     # Parse port range
@@ -35,7 +89,7 @@ async def run_scan(target_str: str, port_range: str, output_format: str, concurr
         else:
             ports = [int(p.strip()) for p in port_range.split(',')]
     except ValueError:
-        print(f"[!] Invalid port range: {port_range}")
+        console.print(f"[bold red][!] Invalid port range: {port_range}[/bold red]")
         return
 
     data_dir = os.path.join(os.path.dirname(__file__), "data")
@@ -43,23 +97,32 @@ async def run_scan(target_str: str, port_range: str, output_format: str, concurr
     checker = Checker(data_dir=data_dir)
     
     start_time = time.time()
-    
     all_findings = []
-    # Process targets sequentially to avoid overwhelming network, but scanner handles concurrency internally
-    for target in targets:
-        findings = await process_target(target, ports, scanner, checker)
-        all_findings.extend(findings)
-    
-    end_time = time.time()
-    duration = end_time - start_time
 
-    print(f"\n[*] Scan complete. Duration: {duration:.2f} seconds.")
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TaskProgressColumn(),
+        console=console
+    ) as progress:
+        for target in targets:
+            findings = await process_target(target, ports, scanner, checker, progress)
+            all_findings.extend(findings)
     
+    duration = time.time() - start_time
+    console.print(f"\n[bold green]✓[/bold green] Scan completed in [bold cyan]{duration:.2f}[/bold cyan] seconds.")
+    
+    if not all_findings:
+        console.print("[bold green]No vulnerabilities found! Good job.[/bold green]")
+        return
+
     if output_format == "json":
         print(Reporter.to_json(all_findings))
     else:
-        print("\n" + "="*20 + " FINAL VULNERABILITY REPORT " + "="*20)
-        print(Reporter.to_text(all_findings))
+        display_summary_table(all_findings)
+        console.print("\n[bold cyan]Detailed Findings:[/bold cyan]")
+        console.print(Reporter.to_text(all_findings))
 
 def main():
     # Enable ANSI colors on Windows 10+
@@ -68,20 +131,29 @@ def main():
         kernel32 = ctypes.windll.kernel32
         kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
 
-    parser = argparse.ArgumentParser(description="Professional Vulnerability Framework")
-    parser.add_argument("target", help="Target IP, CIDR (e.g. 192.168.1.0/24), or domain")
+    parser = argparse.ArgumentParser(description="VulnScanner: Professional Vulnerability Framework")
+    parser.add_argument("target", help="Target IP, CIDR, or domain")
     parser.add_argument("-p", "--ports", default="21,22,80,443,3306,5432,8080", help="Port range (1-100) or list (22,80)")
     parser.add_argument("-f", "--format", choices=["text", "json"], default="text", help="Output format")
     parser.add_argument("-c", "--concurrency", type=int, default=200, help="Max concurrent connections")
+    parser.add_argument("--profile", choices=["quick", "web", "full"], help="Pre-defined scanning profiles")
     
     args = parser.parse_args()
     
+    # Handle profiles
+    if args.profile == "quick":
+        args.ports = "22,80,443"
+    elif args.profile == "web":
+        args.ports = "80,443,8000,8080,8443"
+    elif args.profile == "full":
+        args.ports = "1-1000"
+
     try:
         asyncio.run(run_scan(args.target, args.ports, args.format, args.concurrency))
     except KeyboardInterrupt:
-        print("\n[!] User interrupted. Exiting...")
+        console.print("\n[bold red][!] User interrupted. Exiting...[/bold red]")
     except Exception as e:
-        print(f"\n[!] Fatal Error: {e}")
+        console.print(f"\n[bold red][!] Fatal Error: {e}[/bold red]")
 
 if __name__ == "__main__":
     main()
