@@ -5,9 +5,10 @@ import sys
 import time
 from rich.console import Console
 from rich.table import Table
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
+from rich.progress import (
+    Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn, TimeRemainingColumn
+)
 from rich.panel import Panel
-from rich.live import Live
 from rich import box
 
 from .scanner import Scanner
@@ -26,47 +27,8 @@ BANNER = """
  ╚████╔╝ ╚██████╔╝███████╗██║ ╚████║███████║╚██████╗██║  ██║██║ ╚████║██║ ╚████║███████╗██║  ██║
   ╚═══╝   ╚═════╝ ╚══════╝╚═╝  ╚═══╝╚══════╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝
 [/bold cyan]
-[bold white]Vulnerability Assessment Framework | v2.1 | Developed by Zypher17[/bold white]
+[bold white]VulnScanner v2.2 | Security Research Framework | Developed by Zypher17[/bold white]
 """
-
-async def process_target(target: str, ports: list, scanner: Scanner, checker: Checker, progress: Progress):
-    task_id = progress.add_task(f"[cyan]Scanning {target}...", total=len(ports))
-    host = await scanner.scan_host(target, ports)
-    progress.update(task_id, completed=len(ports), description=f"[green]Scan complete for {target}")
-    
-    if not host.alive:
-        return []
-
-    check_task = progress.add_task(f"[yellow]Analyzing {target}...", total=1)
-    findings = await checker.run_checks(host)
-    progress.update(check_task, completed=1, description=f"[green]Analysis complete for {target}")
-    
-    return findings
-
-def display_summary_table(findings):
-    table = Table(title="Vulnerability Summary", box=box.ROUNDED, header_style="bold magenta")
-    table.add_column("Severity", justify="center")
-    table.add_column("Target", justify="left")
-    table.add_column("Port", justify="center")
-    table.add_column("Issue", justify="left")
-    
-    severity_colors = {
-        "critical": "[bold red]CRITICAL[/bold red]",
-        "high": "[red]HIGH[/red]",
-        "medium": "[yellow]MEDIUM[/yellow]",
-        "low": "[blue]LOW[/blue]",
-        "none": "[green]INFO[/green]"
-    }
-    
-    for f in findings:
-        table.add_row(
-            severity_colors.get(f.severity.value.lower(), f.severity.value),
-            f.host,
-            str(f.port),
-            f.title
-        )
-    
-    console.print(table)
 
 async def run_scan(target_str: str, port_range: str, output_format: str, concurrency: int):
     console.print(Panel(BANNER, border_style="cyan"))
@@ -95,16 +57,32 @@ async def run_scan(target_str: str, port_range: str, output_format: str, concurr
     start_time = time.time()
     all_findings = []
 
+    # Initialize professional progress tracker
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
         BarColumn(),
         TaskProgressColumn(),
+        TimeRemainingColumn(),
         console=console
     ) as progress:
+        overall_task = progress.add_task("[cyan]Overall Scan Progress", total=len(targets))
+        
         for target in targets:
-            findings = await process_target(target, ports, scanner, checker, progress)
-            all_findings.extend(findings)
+            progress.update(overall_task, description=f"[cyan]Scanning {target}")
+            
+            # Sub-task for port scanning
+            scan_task = progress.add_task(f"[blue]Port scan: {target}", total=len(ports))
+            host = await scanner.scan_host(target, ports)
+            progress.update(scan_task, completed=len(ports))
+            
+            if host.alive:
+                check_task = progress.add_task(f"[yellow]Analyzing vulnerabilities: {target}", total=1)
+                findings = await checker.run_checks(host)
+                all_findings.extend(findings)
+                progress.update(check_task, completed=1)
+            
+            progress.advance(overall_task)
     
     duration = time.time() - start_time
     console.print(f"\n[bold green]✓[/bold green] Scan completed in [bold cyan]{duration:.2f}[/bold cyan] seconds.")
@@ -120,29 +98,52 @@ async def run_scan(target_str: str, port_range: str, output_format: str, concurr
         console.print("\n[bold cyan]Detailed Findings:[/bold cyan]")
         console.print(Reporter.to_text(all_findings))
 
+def display_summary_table(findings):
+    table = Table(title="Vulnerability Summary", box=box.ROUNDED, header_style="bold magenta")
+    table.add_column("Severity", justify="center")
+    table.add_column("Target", justify="left")
+    table.add_column("Port", justify="center")
+    table.add_column("Issue", justify="left")
+    
+    severity_colors = {
+        "critical": "[bold red]CRITICAL[/bold red]",
+        "high": "[bold red]HIGH[/bold red]",
+        "medium": "[bold yellow]MEDIUM[/bold yellow]",
+        "low": "[bold blue]LOW[/bold blue]",
+        "none": "[green]INFO[/green]"
+    }
+    
+    for f in findings:
+        table.add_row(
+            severity_colors.get(f.severity.value.lower(), f.severity.value),
+            f.host,
+            str(f.port),
+            f.title
+        )
+    
+    console.print(table)
+
 def main():
     if os.name == 'nt':
-        import ctypes
-        kernel32 = ctypes.windll.kernel32
-        kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
+        try:
+            import ctypes
+            kernel32 = ctypes.windll.kernel32
+            kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
+        except: pass
 
     parser = argparse.ArgumentParser(description="VulnScanner: Professional Vulnerability Framework")
     parser.add_argument("target", help="Target IP, CIDR, or domain")
-    parser.add_argument("-p", "--ports", default="21,22,80,443,3306,5432,8080,9000", help="Port range (1-100) or list (22,80)")
+    parser.add_argument("-p", "--ports", default="21,22,80,443,3306,5432,8080,9000", help="Port range or list")
     parser.add_argument("-f", "--format", choices=["text", "json"], default="text", help="Output format")
-    parser.add_argument("-c", "--concurrency", type=int, default=200, help="Max concurrent connections")
-    parser.add_argument("--profile", choices=["quick", "web", "full", "lab"], help="Pre-defined scanning profiles")
+    parser.add_argument("-c", "--concurrency", type=int, default=200, help="Max connections")
+    parser.add_argument("--profile", choices=["quick", "web", "full", "lab"], help="Scanning profiles")
     
     args = parser.parse_args()
     
-    if args.profile == "quick":
-        args.ports = "22,80,443"
-    elif args.profile == "web":
-        args.ports = "80,443,8000,8080,8443"
-    elif args.profile == "full":
-        args.ports = "1-1000"
-    elif args.profile == "lab":
-        args.ports = "8080,9000"
+    if args.profile == "quick": args.ports = "22,80,443"
+    elif args.profile == "web": args.ports = "80,443,8000,8080,8443"
+    elif args.profile == "full": args.ports = "1-1000"
+    elif args.profile == "lab": args.ports = "8080,9000"
 
     try:
         asyncio.run(run_scan(args.target, args.ports, args.format, args.concurrency))
