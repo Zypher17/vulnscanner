@@ -26,16 +26,12 @@ BANNER = """
  ╚████╔╝ ╚██████╔╝███████╗██║ ╚████║███████║╚██████╗██║  ██║██║ ╚████║██║ ╚████║███████╗██║  ██║
   ╚═══╝   ╚═════╝ ╚══════╝╚═╝  ╚═══╝╚══════╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝
 [/bold cyan]
-[bold white]Vulnerability Assessment Framework | v2.0[/bold white]
+[bold white]Vulnerability Assessment Framework | v2.1 | Developed by Zypher17[/bold white]
 """
 
 async def process_target(target: str, ports: list, scanner: Scanner, checker: Checker, progress: Progress):
     task_id = progress.add_task(f"[cyan]Scanning {target}...", total=len(ports))
-    
-    # Custom callback to update progress per port
     host = await scanner.scan_host(target, ports)
-    # We update progress fully after host scan since scanner.scan_host is internal
-    # For more granularity, we'd need to modify scan_host to accept a callback
     progress.update(task_id, completed=len(ports), description=f"[green]Scan complete for {target}")
     
     if not host.alive:
@@ -80,7 +76,6 @@ async def run_scan(target_str: str, port_range: str, output_format: str, concurr
         console.print("[bold red][!] No valid targets found.[/bold red]")
         return
 
-    # Parse port range
     ports = []
     try:
         if '-' in port_range:
@@ -125,7 +120,6 @@ async def run_scan(target_str: str, port_range: str, output_format: str, concurr
         console.print(Reporter.to_text(all_findings))
 
 def main():
-    # Enable ANSI colors on Windows 10+
     if os.name == 'nt':
         import ctypes
         kernel32 = ctypes.windll.kernel32
@@ -133,20 +127,21 @@ def main():
 
     parser = argparse.ArgumentParser(description="VulnScanner: Professional Vulnerability Framework")
     parser.add_argument("target", help="Target IP, CIDR, or domain")
-    parser.add_argument("-p", "--ports", default="21,22,80,443,3306,5432,8080", help="Port range (1-100) or list (22,80)")
+    parser.add_argument("-p", "--ports", default="21,22,80,443,3306,5432,8080,9000", help="Port range (1-100) or list (22,80)")
     parser.add_argument("-f", "--format", choices=["text", "json"], default="text", help="Output format")
     parser.add_argument("-c", "--concurrency", type=int, default=200, help="Max concurrent connections")
-    parser.add_argument("--profile", choices=["quick", "web", "full"], help="Pre-defined scanning profiles")
+    parser.add_argument("--profile", choices=["quick", "web", "full", "lab"], help="Pre-defined scanning profiles")
     
     args = parser.parse_args()
     
-    # Handle profiles
     if args.profile == "quick":
         args.ports = "22,80,443"
     elif args.profile == "web":
         args.ports = "80,443,8000,8080,8443"
     elif args.profile == "full":
         args.ports = "1-1000"
+    elif args.profile == "lab":
+        args.ports = "8080,9000"
 
     try:
         asyncio.run(run_scan(args.target, args.ports, args.format, args.concurrency))

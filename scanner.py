@@ -33,7 +33,7 @@ class Scanner:
                 await writer.wait_closed()
                 
                 # Specific service identification
-                if port_number in [80, 443, 8080]:
+                if port_number in [80, 443, 8080, 9000]: # Added 9000 for XSS lab
                     await self._identify_http(host_addr, port)
                 elif port_number == 22:
                     port.service = "ssh"
@@ -53,17 +53,14 @@ class Scanner:
         if not banner:
             return
 
-        # SSH banner cleaning
         if "SSH-" in banner:
             port.service = "ssh"
-            # Extract OpenSSH version if present
             match = re.search(r'OpenSSH[_-]([\d.]+)', banner)
             if match:
                 port.version = f"OpenSSH {match.group(1)}"
             else:
-                port.version = banner.split('-')[-1] # Fallback
+                port.version = banner.split('-')[-1]
         
-        # FTP banner cleaning
         elif "220" in banner:
             port.service = "ftp"
             if "vsFTPd" in banner:
@@ -79,17 +76,14 @@ class Scanner:
                 response = await client.get(url)
                 port.service = "http"
                 
-                # Extract Server header
                 server_header = response.headers.get("Server", "")
                 if server_header:
-                    # Clean server header (e.g., "Apache/2.4.41 (Ubuntu)" -> "Apache 2.4.41")
                     match = re.search(r'^([a-zA-Z]+)/([\d.]+)', server_header)
                     if match:
                         port.version = f"{match.group(1)} {match.group(2)}"
                     else:
                         port.version = server_header
                 
-                # Simple title extraction
                 title_match = re.search(r'<title>(.*?)</title>', response.text, re.IGNORECASE)
                 if title_match:
                     port.title = title_match.group(1).strip()

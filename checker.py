@@ -1,6 +1,7 @@
 import json
 import os
 import asyncio
+import httpx
 from typing import List, Dict, Any
 from .models import Host, Port, Finding, Severity
 
@@ -16,14 +17,12 @@ class BaseCheck:
 class ExploitDBCheck(BaseCheck):
     async def check(self, host: Host, port: Port) -> List[Finding]:
         findings = []
-        # We need at least a service or a version to search
         query = ""
         if port.service and port.version:
             query = f"{port.service} {port.version}"
         elif port.version:
             query = port.version
         elif port.service:
-            # Only search if it's a specific service, not generic 'http'
             if port.service not in ["http", "tcp", "unknown"]:
                 query = port.service
         
@@ -31,14 +30,12 @@ class ExploitDBCheck(BaseCheck):
             return findings
 
         try:
-            # Try real searchsploit first
             process = await asyncio.create_subprocess_exec(
                 'searchsploit', query, '--json',
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )
         except FileNotFoundError:
-            # Fallback for Windows testing
             try:
                 process = await asyncio.create_subprocess_exec(
                     'python', 'mock_searchsploit.py', query,
@@ -54,7 +51,6 @@ class ExploitDBCheck(BaseCheck):
                 data = json.loads(stdout.decode(errors='ignore'))
                 results = data.get('RESULTS_EXPLOIT', [])
                 
-                # Deduplicate and limit
                 seen_titles = set()
                 for result in results:
                     title = result.get('Title')
@@ -88,13 +84,11 @@ class HTTPCheck(BaseCheck):
         findings = []
         if port.service != "http": return findings
 
-        # Check title for common sensitive panels
         title = (port.title or "").lower()
         targets = ["admin", "login", "manager", "dashboard", "control panel", "setup", "config"]
         
         for t in targets:
             if t in title:
-                risk = self.kb.get('risk_summary', {}).get("HTTP-EXPOSED_ADMIN", {})
                 findings.append(Finding(
                     host=host.addr,
                     port=port.number,
@@ -108,6 +102,33 @@ class HTTPCheck(BaseCheck):
                     exploitation_note="Attackers target these for brute-forcing or unauthorized access."
                 ))
                 break
+        
+        # ACTIVE XSS CHECK
+        try:
+            xss_payload = "<script>alert('XSS')</script>"
+            protocol = "https" if port.number == 443 else "http"
+            # Try common parameters like 'name', 'q', 'search'
+            for param in ['name', 'q', 'search', 'id']:
+                url = f"{protocol}://{host.addr}:{port.number}/?{param}={xss_payload}"
+                async with httpx.AsyncClient(timeout=2.0, verify=False) as client:
+                    response = await client.get(url)
+                    if xss_payload in response.text:
+                        findings.append(Finding(
+                            host=host.addr,
+                            port=port.number,
+                            service="http",
+                            code="HTTP-XSS",
+                            severity=Severity.HIGH,
+                            title="Reflected Cross-Site Scripting (XSS) Detected",
+                            description=f"The application reflects user input from the '{param}' parameter without sanitization.",
+                            evidence=f"Payload reflected in response: {url}",
+                            remediation="Implement proper output encoding and use a Content Security Policy (CSP).",
+                            exploitation_note="An attacker could execute malicious scripts in the victim's browser."
+                        ))
+                        break # Found one, move on
+        except Exception:
+            pass
+
         return findings
 
 
@@ -134,7 +155,6 @@ class Checker:
     async def run_checks(self, host: Host) -> List[Finding]:
         all_findings = []
         for port in host.ports:
-            # Run checks concurrently for this port
             tasks = [c.check(host, port) for c in self.checks]
             results = await asyncio.gather(*tasks)
             for r in results:
