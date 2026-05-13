@@ -1,0 +1,7 @@
+Metadata-Version: 2.4
+Name: vulnscanner
+Version: 2.2
+Requires-Dist: httpx
+Requires-Dist: rich
+Requires-Dist: PyYAML
+Dynamic: requires-dist
