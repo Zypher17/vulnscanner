@@ -88,8 +88,9 @@ async def run_scan(target_str: str, port_range: str, output_format: str, concurr
         return
 
     data_dir = os.path.join(os.path.dirname(__file__), "data")
+    templates_dir = os.path.join(os.path.dirname(__file__), "templates")
     scanner = Scanner(concurrency=concurrency)
-    checker = Checker(data_dir=data_dir)
+    checker = Checker(data_dir=data_dir, templates_dir=templates_dir)
     
     start_time = time.time()
     all_findings = []

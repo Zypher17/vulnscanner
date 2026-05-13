@@ -1,0 +1,23 @@
+id: exposed-dot-env
+name: Exposed .env file
+severity: HIGH
+description: The .env file is accessible, potentially leaking sensitive application configuration.
+remediation: Remove or restrict access to the .env file.
+request:
+  method: GET
+  path: /.env
+  matchers:
+    - type: word
+      words: ["DB_PASSWORD", "SECRET_KEY", "API_KEY"]
+---
+id: exposed-git-config
+name: Exposed .git directory
+severity: HIGH
+description: The .git directory is accessible, potentially revealing source code history.
+remediation: Block access to the .git directory.
+request:
+  method: GET
+  path: /.git/config
+  matchers:
+    - type: word
+      words: ["core", "repositoryformatversion"]
