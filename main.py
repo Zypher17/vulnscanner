@@ -1,148 +1,56 @@
-import asyncio
-import argparse
-import os
-import sys
-import time
-from rich.console import Console
-from rich.table import Table
-from rich.panel import Panel
-from rich import box
-
-from .scanner import Scanner
-from .checker import Checker
-from .reporter import Reporter
-from .reporter_html import HTMLReporter
-from .utils import parse_targets
-
-console = Console()
-
-BANNER = """
-[bold cyan]
-██╗   ██╗██╗   ██╗██╗     ███╗   ██╗███████╗ ██████╗ █████╗ ███╗   ██╗███╗   ██╗███████╗██████╗ 
-██║   ██║██║   ██║██║     ████╗  ██║██╔════╝██╔════╝██╔══██╗████╗  ██║████╗  ██║██╔════╝██╔══██╗
-██║   ██║██║   ██║██║     ██╔██╗ ██║███████╗██║     ███████║██╔██╗ ██║██╔██╗ ██║█████╗  ██████╔╝
-╚██╗ ██╔╝██║   ██║██║     ██║╚██╗██║╚════██║██║     ██╔══██║██║╚██╗██║██║╚██╗██║██╔══╝  ██╔══██╗
- ╚████╔╝ ╚██████╔╝███████╗██║ ╚████║███████║╚██████╗██║  ██║██║ ╚████║██║ ╚████║███████╗██║  ██║
-  ╚═══╝   ╚═════╝ ╚══════╝╚═╝  ╚═══╝╚══════╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝
-[/bold cyan]
-[bold white]VulnScanner v2.2 | Security Research Framework | Developed by Zypher17[/bold white]
 """
+VulnScanner: A professional vulnerability assessment framework.
+"""
+import asyncio
+import logging
+import argparse
+from core.scanner import Scanner
+from core.checker import Checker
+from reporter_html import HTMLReporter
+from utils.notes_exporter import NotesExporter
 
-async def run_scan(target_str: str, port_range: str, output_format: str, concurrency: int, export_html: str = None):
-    console.print(Panel(BANNER, border_style="cyan"))
+# Professional logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger("VulnScanner")
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(description="VulnScanner: Advanced Defensive Reconnaissance")
+    parser.add_argument("target", help="Target IP or range")
+    parser.add_argument("-p", "--ports", default="80,443,8080,9000", help="Ports")
+    parser.add_argument("--export-html", help="HTML report output path")
+    parser.add_argument("--export-notes", help="Plaintext notes output path")
+    return parser.parse_args()
+
+async def run_scan(target, port_range, args):
+    scanner = Scanner()
+    checker = Checker(data_dir="data", templates_dir="templates")
     
-    targets = parse_targets(target_str)
-    if not targets:
-        console.print("[bold red][!] No valid targets found.[/bold red]")
-        return
-
-    ports = []
-    try:
-        if '-' in port_range:
-            start, end = map(int, port_range.split('-'))
-            ports = list(range(start, end + 1))
-        else:
-            ports = [int(p.strip()) for p in port_range.split(',')]
-    except ValueError:
-        console.print(f"[bold red][!] Invalid port range: {port_range}[/bold red]")
-        return
-
-    data_dir = os.path.join(os.path.dirname(__file__), "data")
-    templates_dir = os.path.join(os.path.dirname(__file__), "templates")
-    scanner = Scanner(concurrency=concurrency)
-    checker = Checker(data_dir=data_dir, templates_dir=templates_dir)
+    ports = [int(p) for p in port_range.split(',')]
+    host = await scanner.scan_host(target, ports)
     
-    start_time = time.time()
-    all_findings = []
-
-    for target in targets:
-        console.print(f"[bold cyan]Scanning target:[/bold cyan] [bold white]{target}[/bold white]")
+    if host.alive:
+        logger.info(f"Target {target} is up. Running checks...")
+        findings = await checker.run_checks(host)
         
-        # Scan
-        host = await scanner.scan_host(target, ports)
-        
-        if host.alive:
-            console.print(f"[bold green]✓[/bold green] Host [bold white]{target}[/bold white] is up. Found {len(host.ports)} open ports.")
-            findings = await checker.run_checks(host)
-            all_findings.extend(findings)
-            console.print(f"[bold green]✓[/bold green] Analysis complete. Found {len(findings)} findings.")
-        else:
-            console.print(f"[bold red]✗[/bold red] Host [bold white]{target}[/bold white] appears to be down.")
-    
-    duration = time.time() - start_time
-    console.print(f"\n[bold green]✓[/bold green] Scan completed in [bold cyan]{duration:.2f}[/bold cyan] seconds.")
-    
-    if export_html:
-        html_report = HTMLReporter.generate(all_findings, target_str)
-        with open(export_html, "w") as f:
-            f.write(html_report)
-        console.print(f"[bold green]✓[/bold green] Report exported to [bold cyan]{export_html}[/bold cyan]")
+        if args.export_html:
+            html = HTMLReporter.generate(findings, target)
+            with open(args.export_html, "w") as f:
+                f.write(html)
+            logger.info(f"HTML report saved to {args.export_html}")
+            
+        if args.export_notes:
+            notes = NotesExporter.generate(findings, target)
+            with open(args.export_notes, "w") as f:
+                f.write(notes)
+            logger.info(f"Notes saved to {args.export_notes}")
+            
+        for f in findings:
+            logger.warning(f"Vulnerability found: {f.title} [{f.severity}]")
 
-    if not all_findings:
-        console.print("[bold green]No vulnerabilities found! Good job.[/bold green]")
-        return
-
-    if output_format == "json":
-        print(Reporter.to_json(all_findings))
-    else:
-        display_summary_table(all_findings)
-        console.print("\n[bold cyan]Detailed Findings:[/bold cyan]")
-        console.print(Reporter.to_text(all_findings))
-
-def display_summary_table(findings):
-    table = Table(title="Vulnerability Summary", box=box.ROUNDED, header_style="bold magenta")
-    table.add_column("Severity", justify="center")
-    table.add_column("Target", justify="left")
-    table.add_column("Port", justify="center")
-    table.add_column("Issue", justify="left")
-    
-    severity_colors = {
-        "critical": "[bold red]CRITICAL[/bold red]",
-        "high": "[bold red]HIGH[/bold red]",
-        "medium": "[bold yellow]MEDIUM[/bold yellow]",
-        "low": "[bold blue]LOW[/bold blue]",
-        "none": "[green]INFO[/green]"
-    }
-    
-    for f in findings:
-        table.add_row(
-            severity_colors.get(f.severity.value.lower(), f.severity.value),
-            f.host,
-            str(f.port),
-            f.title
-        )
-    
-    console.print(table)
-
-def main():
-    if os.name == 'nt':
-        try:
-            import ctypes
-            kernel32 = ctypes.windll.kernel32
-            kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
-        except: pass
-
-    parser = argparse.ArgumentParser(description="VulnScanner: Professional Vulnerability Framework")
-    parser.add_argument("target", help="Target IP, CIDR, or domain")
-    parser.add_argument("-p", "--ports", default="21,22,80,443,3306,5432,8080,9000", help="Port range or list")
-    parser.add_argument("-f", "--format", choices=["text", "json"], default="text", help="Output format")
-    parser.add_argument("-c", "--concurrency", type=int, default=200, help="Max connections")
-    parser.add_argument("--profile", choices=["quick", "web", "full", "lab"], help="Scanning profiles")
-    parser.add_argument("--export-html", help="Export report to HTML file")
-    
-    args = parser.parse_args()
-    
-    if args.profile == "quick": args.ports = "22,80,443"
-    elif args.profile == "web": args.ports = "80,443,8000,8080,8443"
-    elif args.profile == "full": args.ports = "1-1000"
-    elif args.profile == "lab": args.ports = "8080,9000"
-
-    try:
-        asyncio.run(run_scan(args.target, args.ports, args.format, args.concurrency, args.export_html))
-    except KeyboardInterrupt:
-        console.print("\n[bold red][!] User interrupted. Exiting...[/bold red]")
-    except Exception as e:
-        console.print(f"\n[bold red][!] Fatal Error: {e}[/bold red]")
+async def main():
+    args = parse_arguments()
+    logger.info(f"Initiating scan on {args.target}")
+    await run_scan(args.target, args.ports, args)
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
