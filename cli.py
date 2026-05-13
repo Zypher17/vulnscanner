@@ -1,35 +1,33 @@
+"""
+Main entry point for VulnScanner.
+"""
+import asyncio
+import logging
 import argparse
-import sys
 from core.scanner import Scanner
 from core.checker import Checker
-from core.reporter import Reporter
 
-def main():
+logger = logging.getLogger("vulnscanner")
+
+def parse_args():
     parser = argparse.ArgumentParser(description="VulnScanner: Defensive Vulnerability Assessment")
     subparsers = parser.add_subparsers(dest="command")
 
     scan_parser = subparsers.add_parser("scan")
-    scan_parser.add_argument("target")
-    scan_parser.add_argument("--ports", default="1-1000")
+    scan_parser.add_argument("target", help="Target IP address")
+    
+    return parser.parse_args()
 
-    check_parser = subparsers.add_parser("check")
-    check_parser.add_argument("--module")
-    check_parser.add_argument("--target")
-
-    report_parser = subparsers.add_parser("report")
-    report_parser.add_argument("--format", choices=["text", "json"], default="text")
-
-    args = parser.parse_args()
-
+async def run():
+    args = parse_args()
     if args.command == "scan":
-        print(f"[*] Starting scan on {args.target}")
-        # Logic here...
-    elif args.command == "check":
-        print(f"[*] Checking module {args.module} on {args.target}")
-    elif args.command == "report":
-        print(f"[*] Generating report in {args.format}")
-    else:
-        parser.print_help()
+        scanner = Scanner()
+        checker = Checker()
+        host = await scanner.scan_host(args.target, [80, 443, 22])
+        if host.alive:
+            findings = await checker.run_checks(host)
+            for f in findings:
+                logger.warning(f"Found {f.title} on {f.host}:{f.port}")
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(run())

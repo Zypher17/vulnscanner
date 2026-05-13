@@ -1,5 +1,14 @@
-from dataclasses import dataclass, field
+"""
+VulnScanner: A professional vulnerability assessment framework.
+"""
+import asyncio
+import logging
 from typing import List, Optional
+from dataclasses import dataclass, field
+
+# Setup logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger("vulnscanner")
 
 @dataclass
 class Port:
@@ -7,9 +16,7 @@ class Port:
     is_open: bool = False
     service: Optional[str] = None
     version: Optional[str] = None
-    banner: Optional[str] = None
-    cve_id: Optional[str] = None
-    
+
 @dataclass
 class Host:
     addr: str
@@ -27,6 +34,5 @@ class Finding:
     remediation: str
     exploitation_note: str
     cve_id: Optional[str] = None
-    public_exploit_available: bool = False
-    vendor_links: List[str] = field(default_factory=list)
+    links: List[str] = field(default_factory=list)
     tags: List[str] = field(default_factory=list)
