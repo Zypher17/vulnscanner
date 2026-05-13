@@ -166,8 +166,7 @@ class HTTPCheck(BaseCheck):
                                 severity=Severity.HIGH,
                                 title="SQL Injection Indicator Detected",
                                 description=f"The application might be vulnerable to SQL injection via the '{param}' parameter. An SQL error pattern was detected in the response.",
-                                evidence=f"Payload: {payload} on URL: {url}
-Response snippet indicating error.",
+                                evidence="Payload: {} on URL: {}\nResponse snippet indicating error.".format(payload, url),
                                 remediation="Sanitize all user inputs. Use parameterized queries or prepared statements for all database interactions.",
                                 exploitation_note="An attacker might be able to infer database structure or execute unauthorized queries."
                             ))
