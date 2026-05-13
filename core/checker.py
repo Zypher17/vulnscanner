@@ -1,6 +1,6 @@
 import importlib
 from typing import List
-from models import Host, Port, Finding
+from vulnscanner.models import Host, Port, Finding
 
 class Checker:
     def __init__(self):
@@ -12,7 +12,7 @@ class Checker:
         
         for mod_name in modules_to_run:
             try:
-                mod = importlib.import_module(f"modules.{mod_name}")
+                mod = importlib.import_module(f"vulnscanner.modules.{mod_name}")
                 if hasattr(mod, "check"):
                     findings = await mod.check(host)
                     all_findings.extend(findings)

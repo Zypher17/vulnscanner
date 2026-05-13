@@ -3,7 +3,7 @@ Core engine orchestrating scans with result caching and concurrent workers.
 """
 import asyncio
 from typing import List
-from models import Host, Port, logger
+from vulnscanner.models import Host, Port, logger
 from utils.cache import ResultCache
 
 class Scanner:

@@ -1,6 +1,6 @@
 import json
 from typing import List
-from models import Finding
+from vulnscanner.models import Finding
 
 class Reporter:
     @staticmethod
