@@ -61,6 +61,23 @@ python -m scanner.main search "Apache Struts"
 
 ---
 
+## 🗑 Uninstallation
+
+To remove VulnScanner from your system, follow these steps:
+
+1. **Remove the installed package**:
+   ```bash
+   pip uninstall vulnscanner
+   ```
+
+2. **Remove the project directory**:
+   ```bash
+   cd ..
+   rmdir /s /q vulnscanner
+   ```
+
+---
+
 ## 🛡 Disclaimer
 *This framework is designed for authorized security research, educational purposes, and home lab environments only. Use responsibly and adhere to all applicable laws and ethical guidelines.*
 
