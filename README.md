@@ -20,10 +20,16 @@
 
 ## 🛠 Installation
 
+For modern Linux distributions (like Kali Linux) that use PEP 668, please use a virtual environment to avoid installation errors:
+
 ```bash
 # Clone the repository
 git clone https://github.com/Zypher17/vulnscanner.git
 cd vulnscanner
+
+# Create and activate a virtual environment
+python3 -m venv venv
+source venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
@@ -36,18 +42,10 @@ pip install -e .
 
 ## 📖 Usage
 
-### 1. Vulnerability Scanning
-Run a targeted scan to identify open ports, grab banners, and probe for common vulnerabilities:
-
+**Note:** Always activate your virtual environment before running the tool:
 ```bash
-python -m scanner.main scan <TARGET_IP> --ports 22,80,443 --export-html report.html
-```
-
-### 2. Exploit Research
-Quickly find local exploit payloads using the integrated SearchSploit engine:
-
-```bash
-python -m scanner.main search "Apache Struts"
+source venv/bin/activate
+python -m scanner.main scan <TARGET_IP> ...
 ```
 
 ---
