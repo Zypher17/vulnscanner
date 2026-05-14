@@ -1,41 +1,74 @@
-# ShadowRecon (formerly VulnScanner) 🛡️
+# VulnScanner 🛡️
 
-A professional, modular, and async-driven vulnerability assessment framework in Python. Designed for security researchers and CTF participants to map attack surfaces, research vulnerabilities using a built-in **SearchSploit Engine**, and identify web misconfigurations through automated, defensive probing.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python Version](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 
-## Features
-- **ShadowRecon Dashboard**: A modern, interactive HTML/CSS dashboard for professional assessment reporting.
-- **SearchSploit Engine**: Integrated Exploit-DB matching for discovered services and versions.
-- **Service Fingerprinting**: Advanced banner grabbing and version detection.
-- **Template-Driven Engine**: Extensible detection using YAML templates for rapid, modular security probing.
-- **Async Engine**: High-performance, non-blocking network and HTTP scanning.
-- **Defensive Probing**: Safe identification of XSS, SQLi indicators, Open Redirects, and Command Injection.
+**VulnScanner** is a modular, high-performance vulnerability assessment framework designed for security researchers and penetration testers. It combines automated service fingerprinting, template-based vulnerability probing, and an integrated **SearchSploit** engine to streamline reconnaissance and exploit research.
 
-## Usage
-Run the framework using the module flag:
+---
 
-**Scan a target:**
+## 🚀 Key Features
+
+*   **SearchSploit Engine**: Integrated Exploit-DB matching for discovered services. Provides precise, Kali-style local file paths for exploit payloads.
+*   **ShadowRecon Dashboard**: A professional, interactive HTML/CSS dashboard for high-signal reporting.
+*   **Async Core**: High-concurrency engine for rapid, non-blocking network scanning.
+*   **Template-Driven Detection**: Modular YAML-based probing for web misconfigurations (XSS, SQLi, Open Redirects, etc.).
+*   **Service Fingerprinting**: Advanced banner grabbing and version detection.
+*   **User Attribution**: Built-in support for custom branding and attribution in findings and reports.
+
+---
+
+## 🛠 Installation
+
 ```bash
-python -m scanner.main scan 127.0.0.1 --ports 22,80,8080 --export-html report.html
+# Clone the repository
+git clone https://github.com/Zypher17/vulnscanner.git
+cd vulnscanner
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Install as an editable package
+pip install -e .
 ```
 
-**Search for exploits manually:**
+---
+
+## 📖 Usage
+
+### 1. Vulnerability Scanning
+Run a targeted scan to identify open ports, grab banners, and probe for common vulnerabilities:
+
+```bash
+python -m scanner.main scan <TARGET_IP> --ports 22,80,443 --export-html report.html
+```
+
+### 2. Exploit Research
+Quickly find local exploit payloads using the integrated SearchSploit engine:
+
 ```bash
 python -m scanner.main search "Apache Struts"
 ```
 
-**Export reports:**
-```bash
-python -m scanner.main scan 127.0.0.1 --export-html report.html --export-notes notes.txt
-```
+---
 
-## Configuration & Profiles
-Customize detection by adding new rules to `scanner/templates/web_vulns.yaml`.
+## 🏗 Project Architecture
 
-## Roadmap
+*   `scanner/core/`: The asynchronous engine, scanner, and exploit database interface.
+*   `scanner/modules/`: Specialized check modules (HTTP, SSH, SearchSploit, etc.).
+*   `scanner/data/`: Exploit database (`exploits.csv`) and risk summary mappings.
+*   `scanner/templates/`: YAML-based definitions for automated security checks.
+
+---
+
+## 🛡 Disclaimer
+*This framework is designed for authorized security research, educational purposes, and home lab environments only. Use responsibly and adhere to all applicable laws and ethical guidelines.*
+
+## 📜 Roadmap
 - [ ] Add OS fingerprinting.
 - [ ] Implement support for custom user-agent templates.
 - [ ] Enhance report generation to PDF/HTML with hardening playbooks.
 - [ ] Integrate OSV/NVD database APIs.
 
-## License
-MIT License.
+## 🤝 Attribution
+Built by **Zypher17** with significant contributions to the Extended UI and SearchSploit integration logic.
