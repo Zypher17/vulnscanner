@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vulnscanner"
+version = "3.0.0"
+description = "A professional vulnerability assessment framework"
+dependencies = [
+    "rich",
+    "httpx",
+    "PyYAML",
+    "requests"
+]
+requires-python = ">=3.7"
+
+[tool.setuptools]
+packages = ["scanner"]
