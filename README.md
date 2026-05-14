@@ -1,33 +1,31 @@
-# VulnScanner 🛡️
+# ShadowRecon (formerly VulnScanner) 🛡️
 
-A professional, modular, and async-driven vulnerability assessment framework in Python. Designed for security researchers and CTF participants to map attack surfaces, research vulnerabilities using **Exploit-DB**, and identify web misconfigurations through automated, defensive probing.
+A professional, modular, and async-driven vulnerability assessment framework in Python. Designed for security researchers and CTF participants to map attack surfaces, research vulnerabilities using a built-in **SearchSploit Engine**, and identify web misconfigurations through automated, defensive probing.
 
 ## Features
+- **ShadowRecon Dashboard**: A modern, interactive HTML/CSS dashboard for professional assessment reporting.
+- **SearchSploit Engine**: Integrated Exploit-DB matching for discovered services and versions.
+- **Service Fingerprinting**: Advanced banner grabbing and version detection.
 - **Template-Driven Engine**: Extensible detection using YAML templates for rapid, modular security probing.
 - **Async Engine**: High-performance, non-blocking network and HTTP scanning.
-- **Service Fingerprinting**: Advanced service and version detection with a context-aware KB.
-- **Defensive Probing**: Safe identification of XSS, SQLi indicators, Open Redirects, and Command Injection—without weaponized payloads.
-- **Professional Reporting**: Export findings as structured JSON or high-signal plaintext summaries.
-- **Persistence**: Built-in caching engine for high-speed repeated assessments.
-
-## Installation
-```bash
-git clone https://github.com/Zypher17/vulnscanner.git
-cd vulnscanner
-pip install -e .
-```
+- **Defensive Probing**: Safe identification of XSS, SQLi indicators, Open Redirects, and Command Injection.
 
 ## Usage
 Run the framework using the module flag:
 
 **Scan a target:**
 ```bash
-python -m scanner.main 127.0.0.1 --ports 8080,9000
+python -m scanner.main scan 127.0.0.1 --ports 22,80,8080 --export-html report.html
+```
+
+**Search for exploits manually:**
+```bash
+python -m scanner.main search "Apache Struts"
 ```
 
 **Export reports:**
 ```bash
-python -m scanner.main 127.0.0.1 --export-html report.html --export-notes notes.txt
+python -m scanner.main scan 127.0.0.1 --export-html report.html --export-notes notes.txt
 ```
 
 ## Configuration & Profiles

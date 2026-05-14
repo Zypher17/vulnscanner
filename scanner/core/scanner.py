@@ -20,17 +20,69 @@ class Scanner:
         async with self.semaphore:
             p = Port(number=port)
             try:
-                conn = asyncio.open_connection(host_addr, port)
-                _, writer = await asyncio.wait_for(conn, timeout=1.5)
+                reader, writer = await asyncio.wait_for(
+                    asyncio.open_connection(host_addr, port), 
+                    timeout=1.5
+                )
                 p.is_open = True
+                
+                # Attempt basic banner grabbing
+                try:
+                    banner = await asyncio.wait_for(reader.read(1024), timeout=1.0)
+                    p.banner = banner.decode('utf-8', errors='ignore').strip()
+                    self._identify_service(p)
+                except Exception:
+                    pass
+                
                 writer.close()
                 await writer.wait_closed()
             except Exception:
                 p.is_open = False
             
+            # Default service names if not identified by banner
+            if p.is_open and not p.service:
+                if port == 22: p.service = "ssh"
+                elif port == 21: p.service = "ftp"
+                elif port == 80 or port == 8080 or port == 9000: p.service = "http"
+                elif port == 443: p.service = "https"
+                elif port == 3306: p.service = "mysql"
+
             # Cache the result
-            self.cache.set(host_addr, port, p.__dict__)
+            # Convert dataclass to dict for caching
+            cache_data = {
+                "number": p.number,
+                "is_open": p.is_open,
+                "service": p.service,
+                "version": p.version
+            }
+            self.cache.set(host_addr, port, cache_data)
             return p
+
+    def _identify_service(self, port: Port):
+        if not port.banner:
+            return
+        
+        banner = port.banner.lower()
+        if "ssh" in banner:
+            port.service = "ssh"
+            if "openssh" in banner:
+                import re
+                match = re.search(r"openssh[_-]([\d.]+)", banner)
+                if match: port.version = match.group(1)
+        elif "220" in banner and "ftp" in banner:
+            port.service = "ftp"
+        elif "mysql" in banner:
+            port.service = "mysql"
+        elif "apache" in banner:
+            port.service = "http"
+            import re
+            match = re.search(r"apache/([\d.]+)", banner)
+            if match: port.version = match.group(1)
+        elif "nginx" in banner:
+            port.service = "http"
+            import re
+            match = re.search(r"nginx/([\d.]+)", banner)
+            if match: port.version = match.group(1)
 
     async def scan_host(self, host_addr: str, ports: List[int]) -> Host:
         logger.info(f"Scanning target: {host_addr}")

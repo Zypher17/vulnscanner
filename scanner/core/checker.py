@@ -47,7 +47,7 @@ class TemplateCheck:
 
 class Checker:
     def __init__(self, data_dir, templates_dir):
-        self.modules = ["http_check", "ssh_check", "ftp_check", "db_check"]
+        self.modules = ["http_check", "ssh_check", "ftp_check", "db_check", "searchsploit_check"]
         self.template_engine = TemplateCheck(templates_dir)
 
     async def run_checks(self, host: Host, module_name: str = None) -> List[Finding]:
